@@ -2,12 +2,14 @@
   "name": "dream-diary",
   "version": "1.0.0",
   "private": true,
+  "packageManager": "pnpm@10.0.0",
   "description": "A beautiful personal diary with poetry, movies, books, and personal memories",
   "scripts": {
     "build": "next build",
     "dev": "next dev",
     "lint": "next lint",
-    "start": "next start"
+    "start": "next start",
+    "vercel-build": "corepack enable && pnpm install && pnpm run build"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -45,7 +47,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "1.0.4",
-    "date-fns": "4.1.0",
+    "date-fns": "^3.6.0",
     "dotenv": "^17.2.0",
     "embla-carousel-react": "8.5.1",
     "input-otp": "1.4.1",
