@@ -13,7 +13,13 @@ export async function GET() {
       personalInfoObject[item.key] = item.value;
     });
     
-    return NextResponse.json(personalInfoObject);
+    // Add cache control headers to ensure fresh data
+    const response = NextResponse.json(personalInfoObject);
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+    
+    return response;
   } catch (error) {
     console.error('Error fetching personal info:', error);
     return NextResponse.json({ error: 'Failed to fetch personal info' }, { status: 500 });

@@ -21,6 +21,11 @@ export default function PersonalPage() {
   useEffect(() => {
     if (isAuthenticated) {
       fetchPersonalInfo()
+      
+      // Set up automatic refresh every 30 seconds to catch admin changes
+      const interval = setInterval(fetchPersonalInfo, 30000)
+      
+      return () => clearInterval(interval)
     }
   }, [isAuthenticated])
 

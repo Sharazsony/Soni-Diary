@@ -3,11 +3,6 @@
   "buildCommand": "pnpm run build",
   "devCommand": "pnpm run dev",
   "installCommand": "corepack enable && pnpm install",
-  "build": {
-    "env": {
-      "NODE_ENV": "production"
-    }
-  },
   "functions": {
     "app/api/**/*.ts": {
       "maxDuration": 10

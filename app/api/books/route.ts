@@ -6,7 +6,14 @@ export async function GET() {
   try {
     await connectToDatabase();
     const books = await Book.find({}).sort({ createdAt: -1 });
-    return NextResponse.json(books);
+    
+    // Add cache control headers to ensure fresh data
+    const response = NextResponse.json(books);
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+    
+    return response;
   } catch (error) {
     console.error('Error fetching books:', error);
     return NextResponse.json({ error: 'Failed to fetch books' }, { status: 500 });

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { PenTool, ArrowLeft } from "lucide-react"
 import PoetryList from "@/components/poetry-list"
 import type { Poem } from "@/lib/types"
-import { poemService, seedService } from "@/lib/services"
+import { poemService } from "@/lib/services"
 
 export default function PoetryPage() {
   const [poems, setPoems] = useState<Poem[]>([])
@@ -18,17 +18,7 @@ export default function PoetryPage() {
       try {
         setLoading(true)
         const fetchedPoems = await poemService.getAll()
-        
-        // If no poems exist, automatically seed the database
-        if (fetchedPoems.length === 0) {
-          console.log('No poems found, seeding database automatically...')
-          await seedService.seedDatabase()
-          // Fetch again after seeding
-          const newPoems = await poemService.getAll()
-          setPoems(newPoems)
-        } else {
-          setPoems(fetchedPoems)
-        }
+        setPoems(fetchedPoems)
       } catch (err) {
         console.error('Error fetching poems:', err)
         setError('Failed to load poems')
@@ -38,6 +28,11 @@ export default function PoetryPage() {
     }
 
     fetchPoems()
+    
+    // Set up automatic refresh every 30 seconds to catch admin changes
+    const interval = setInterval(fetchPoems, 30000)
+    
+    return () => clearInterval(interval)
   }, [])
 
   if (loading) {

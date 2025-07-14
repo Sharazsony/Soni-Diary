@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import MovieGrid from "@/components/movie-grid"
 import type { Movie } from "@/lib/types"
-import { movieService, seedService } from "@/lib/services"
+import { movieService } from "@/lib/services"
 
 export default function MoviesPage() {
   const [movies, setMovies] = useState<Movie[]>([])
@@ -21,17 +21,7 @@ export default function MoviesPage() {
       try {
         setLoading(true)
         const fetchedMovies = await movieService.getAll()
-        
-        // If no movies exist, automatically seed the database
-        if (fetchedMovies.length === 0) {
-          console.log('No movies found, seeding database automatically...')
-          await seedService.seedDatabase()
-          // Fetch again after seeding
-          const newMovies = await movieService.getAll()
-          setMovies(newMovies)
-        } else {
-          setMovies(fetchedMovies)
-        }
+        setMovies(fetchedMovies)
       } catch (err) {
         console.error('Error fetching movies:', err)
         setError('Failed to load movies')
@@ -41,6 +31,11 @@ export default function MoviesPage() {
     }
 
     fetchMovies()
+    
+    // Set up automatic refresh every 30 seconds to catch admin changes
+    const interval = setInterval(fetchMovies, 30000)
+    
+    return () => clearInterval(interval)
   }, [])
 
   useEffect(() => {

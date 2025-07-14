@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import BookList from "@/components/book-list"
 import type { Book } from "@/lib/types"
-import { bookService, seedService } from "@/lib/services"
+import { bookService } from "@/lib/services"
 
 export default function BooksPage() {
   const [books, setBooks] = useState<Book[]>([])
@@ -22,17 +22,7 @@ export default function BooksPage() {
       try {
         setLoading(true)
         const fetchedBooks = await bookService.getAll()
-        
-        // If no books exist, automatically seed the database
-        if (fetchedBooks.length === 0) {
-          console.log('No books found, seeding database automatically...')
-          await seedService.seedDatabase()
-          // Fetch again after seeding
-          const newBooks = await bookService.getAll()
-          setBooks(newBooks)
-        } else {
-          setBooks(fetchedBooks)
-        }
+        setBooks(fetchedBooks)
       } catch (err) {
         console.error('Error fetching books:', err)
         setError('Failed to load books')
@@ -42,6 +32,11 @@ export default function BooksPage() {
     }
 
     fetchBooks()
+    
+    // Set up automatic refresh every 30 seconds to catch admin changes
+    const interval = setInterval(fetchBooks, 30000)
+    
+    return () => clearInterval(interval)
   }, [])
 
   useEffect(() => {

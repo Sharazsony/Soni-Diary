@@ -38,14 +38,32 @@ async function connectToDatabase(): Promise<typeof mongoose> {
       bufferCommands: false,
     };
 
-    console.log('Connecting to MongoDB with URI:', MONGODB_URI);
+    console.log('Attempting to connect to MongoDB...');
+    console.log('MongoDB URI (masked):', MONGODB_URI?.replace(/\/\/[^:]+:[^@]+@/, '//***:***@'));
     cached.promise = mongoose.connect(MONGODB_URI as string, opts);
   }
 
   try {
+    console.log('Waiting for MongoDB connection...');
     cached.conn = await cached.promise;
+    console.log('✅ MongoDB connected successfully!');
   } catch (e) {
+    console.error('❌ MongoDB connection failed:', e);
     cached.promise = null;
+    
+    // Provide more specific error information
+    if (e instanceof Error) {
+      if (e.message.includes('ENOTFOUND')) {
+        throw new Error('MongoDB connection failed: Cannot resolve hostname. Check your internet connection and MongoDB URI.');
+      }
+      if (e.message.includes('authentication failed')) {
+        throw new Error('MongoDB connection failed: Authentication failed. Check your username and password.');
+      }
+      if (e.message.includes('IP')) {
+        throw new Error('MongoDB connection failed: IP address not whitelisted. Add your IP to MongoDB Atlas.');
+      }
+    }
+    
     throw e;
   }
 

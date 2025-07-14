@@ -66,6 +66,16 @@ export default function AdminPoetry() {
     fetchPoems()
   }, [isAuthenticated, router, toast])
 
+  // Function to refresh poems data
+  const refreshPoems = async () => {
+    try {
+      const fetchedPoems = await poemService.getAll()
+      setPoems(fetchedPoems)
+    } catch (error) {
+      console.error('Error refreshing poems:', error)
+    }
+  }
+
   const savePoems = async (updatedPoems: Poem[]) => {
     setPoems(updatedPoems)
   }
@@ -100,22 +110,32 @@ export default function AdminPoetry() {
     setDeleteDialog(true)
   }
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!currentPoem) return
 
-    const updatedPoems = poems.filter((p) => p.id !== currentPoem.id)
-    savePoems(updatedPoems)
+    try {
+      await poemService.delete(currentPoem.id)
 
-    toast({
-      title: "Poem deleted",
-      description: `"${currentPoem.title}" has been removed from your collection.`,
-    })
+      toast({
+        title: "Poem deleted",
+        description: `"${currentPoem.title}" has been removed from the database.`,
+      })
+      
+      // Refresh data from database
+      refreshPoems()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete poem from database",
+        variant: "destructive",
+      })
+    }
 
     setDeleteDialog(false)
     setCurrentPoem(null)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     const { title, content, tags } = formData
@@ -124,34 +144,48 @@ export default function AdminPoetry() {
       .map((tag) => tag.trim())
       .filter(Boolean)
 
-    if (currentPoem) {
-      // Edit existing poem
-      const updatedPoems = poems.map((p) => (p.id === currentPoem.id ? { ...p, title, content, tags: tagArray } : p))
-      savePoems(updatedPoems)
+    try {
+      if (currentPoem) {
+        // Edit existing poem in database
+        const updatedPoem = await poemService.update(currentPoem.id, {
+          title,
+          content,
+          tags: tagArray
+        })
+        
+        const updatedPoems = poems.map((p) => (p.id === currentPoem.id ? updatedPoem : p))
+        setPoems(updatedPoems)
 
-      toast({
-        title: "Poem updated",
-        description: `"${title}" has been updated successfully.`,
-      })
-    } else {
-      // Add new poem
-      const newPoem: Poem = {
-        id: `poem${Date.now()}`,
-        title,
-        content,
-        date: new Date().toISOString(),
-        tags: tagArray,
+        toast({
+          title: "Poem updated",
+          description: `"${title}" has been updated in the database.`,
+        })
+      } else {
+        // Add new poem to database
+        const newPoem = await poemService.create({
+          title,
+          content,
+          date: new Date().toISOString(),
+          tags: tagArray,
+        })
+
+        setPoems([...poems, newPoem])
+
+        toast({
+          title: "Poem added",
+          description: `"${title}" has been added to the database.`,
+        })
       }
-
-      savePoems([...poems, newPoem])
-
+    } catch (error) {
       toast({
-        title: "Poem added",
-        description: `"${title}" has been added to your collection.`,
+        title: "Error",
+        description: currentPoem ? "Failed to update poem" : "Failed to create poem",
+        variant: "destructive",
       })
     }
 
     setOpenDialog(false)
+    refreshPoems()
   }
 
   if (!isAuthenticated || isLoading) {
