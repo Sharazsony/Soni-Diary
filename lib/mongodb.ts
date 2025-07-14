@@ -2,8 +2,12 @@ import mongoose from 'mongoose';
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
-if (!MONGODB_URI && process.env.NODE_ENV === 'production') {
-  throw new Error('Please define the MONGODB_URI environment variable inside .env.local');
+if (!MONGODB_URI) {
+  throw new Error(
+    'Please define the MONGODB_URI environment variable. ' +
+    'For local development, add it to .env.local. ' +
+    'For Vercel deployment, add it to your Vercel project environment variables.'
+  );
 }
 
 interface MongooseCache {
@@ -25,12 +29,6 @@ if (!global.mongoose) {
 }
 
 async function connectToDatabase(): Promise<typeof mongoose> {
-  // For build time, return a mock connection
-  if (!MONGODB_URI) {
-    console.warn('MongoDB URI not provided, using mock connection for build');
-    return mongoose;
-  }
-
   if (cached.conn) {
     return cached.conn;
   }
@@ -40,7 +38,8 @@ async function connectToDatabase(): Promise<typeof mongoose> {
       bufferCommands: false,
     };
 
-    cached.promise = mongoose.connect(MONGODB_URI!, opts);
+    console.log('Connecting to MongoDB with URI:', MONGODB_URI);
+    cached.promise = mongoose.connect(MONGODB_URI as string, opts);
   }
 
   try {
