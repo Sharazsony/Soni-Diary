@@ -25,17 +25,41 @@ export async function POST(request: NextRequest) {
     await connectToDatabase();
     const body = await request.json();
     
+    console.log('Received book data:', body);
+    
     // Generate unique ID if not provided
     if (!body.id) {
       body.id = `book${Date.now()}`;
     }
     
     const book = new Book(body);
-    await book.save();
+    const savedBook = await book.save();
     
-    return NextResponse.json(book, { status: 201 });
+    console.log('Book saved successfully:', savedBook);
+    
+    return NextResponse.json(savedBook, { status: 201 });
   } catch (error) {
     console.error('Error creating book:', error);
-    return NextResponse.json({ error: 'Failed to create book' }, { status: 500 });
+    
+    // Provide more specific error information
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(err => err.message);
+      return NextResponse.json({ 
+        error: 'Validation failed', 
+        details: validationErrors 
+      }, { status: 400 });
+    }
+    
+    if (error.code === 11000) {
+      return NextResponse.json({ 
+        error: 'Duplicate book ID', 
+        details: 'A book with this ID already exists' 
+      }, { status: 409 });
+    }
+    
+    return NextResponse.json({ 
+      error: 'Failed to create book', 
+      details: error.message 
+    }, { status: 500 });
   }
 }

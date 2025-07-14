@@ -62,7 +62,13 @@ export const movieService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(movie),
     });
-    if (!response.ok) throw new Error('Failed to create movie');
+    
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error('Movie creation failed:', response.status, errorData);
+      throw new Error(`Failed to create movie: ${response.status} - ${errorData}`);
+    }
+    
     return response.json();
   },
 
@@ -104,7 +110,13 @@ export const bookService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(book),
     });
-    if (!response.ok) throw new Error('Failed to create book');
+    
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error('Book creation failed:', response.status, errorData);
+      throw new Error(`Failed to create book: ${response.status} - ${errorData}`);
+    }
+    
     return response.json();
   },
 

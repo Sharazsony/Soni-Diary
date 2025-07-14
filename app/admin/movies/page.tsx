@@ -22,7 +22,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
 import type { Movie } from "@/lib/types"
-import { movies as initialMovies } from "@/lib/data"
+import { movieService } from "@/lib/services"
 import AdminHeader from "@/components/admin-header"
 
 export default function AdminMovies() {
@@ -52,20 +52,33 @@ export default function AdminMovies() {
       return
     }
 
-    // In a real app, this would be an API call
-    // For demo, we'll use localStorage or fall back to initial data
-    const storedMovies = localStorage.getItem("movies")
-    if (storedMovies) {
-      setMovies(JSON.parse(storedMovies))
-    } else {
-      setMovies(initialMovies)
+    async function fetchMovies() {
+      try {
+        const fetchedMovies = await movieService.getAll()
+        setMovies(fetchedMovies)
+      } catch (error) {
+        console.error('Error fetching movies:', error)
+        toast({
+          title: "Error",
+          description: "Failed to load movies",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
     }
-    setIsLoading(false)
-  }, [isAuthenticated, router])
 
-  const saveMovies = (updatedMovies: Movie[]) => {
-    localStorage.setItem("movies", JSON.stringify(updatedMovies))
-    setMovies(updatedMovies)
+    fetchMovies()
+  }, [isAuthenticated, router, toast])
+
+  // Function to refresh movies data
+  const refreshMovies = async () => {
+    try {
+      const fetchedMovies = await movieService.getAll()
+      setMovies(fetchedMovies)
+    } catch (error) {
+      console.error('Error refreshing movies:', error)
+    }
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -108,22 +121,32 @@ export default function AdminMovies() {
     setDeleteDialog(true)
   }
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!currentMovie) return
 
-    const updatedMovies = movies.filter((m) => m.id !== currentMovie.id)
-    saveMovies(updatedMovies)
+    try {
+      await movieService.delete(currentMovie.id)
 
-    toast({
-      title: "Movie deleted",
-      description: `"${currentMovie.title}" has been removed from your collection.`,
-    })
+      toast({
+        title: "Movie deleted",
+        description: `"${currentMovie.title}" has been removed from the database.`,
+      })
+      
+      // Refresh data from database
+      refreshMovies()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete movie from database",
+        variant: "destructive",
+      })
+    }
 
     setDeleteDialog(false)
     setCurrentMovie(null)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     const { title, year, director, actors, genres, rating, description, poster } = formData
@@ -145,31 +168,36 @@ export default function AdminMovies() {
       poster: poster || undefined,
     }
 
-    if (currentMovie) {
-      // Edit existing movie
-      const updatedMovies = movies.map((m) => (m.id === currentMovie.id ? { ...m, ...movieData } : m))
-      saveMovies(updatedMovies)
+    try {
+      if (currentMovie) {
+        // Edit existing movie
+        await movieService.update(currentMovie.id, movieData)
 
-      toast({
-        title: "Movie updated",
-        description: `"${title}" has been updated successfully.`,
-      })
-    } else {
-      // Add new movie
-      const newMovie: Movie = {
-        id: `movie${Date.now()}`,
-        ...movieData,
+        toast({
+          title: "Movie updated",
+          description: `"${title}" has been updated in the database.`,
+        })
+      } else {
+        // Add new movie
+        await movieService.create(movieData)
+
+        toast({
+          title: "Movie added",
+          description: `"${title}" has been added to the database.`,
+        })
       }
-
-      saveMovies([...movies, newMovie])
-
+    } catch (error) {
+      console.error('Movie operation error:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
       toast({
-        title: "Movie added",
-        description: `"${title}" has been added to your collection.`,
+        title: "Error",
+        description: currentMovie ? `Failed to update movie: ${errorMessage}` : `Failed to create movie: ${errorMessage}`,
+        variant: "destructive",
       })
     }
 
     setOpenDialog(false)
+    refreshMovies()
   }
 
   if (!isAuthenticated || isLoading) {
@@ -239,8 +267,8 @@ export default function AdminMovies() {
 
         {/* Add/Edit Movie Dialog */}
         <Dialog open={openDialog} onOpenChange={setOpenDialog}>
-          <DialogContent className="bg-pink-950 text-white sm:max-w-[600px]">
-            <DialogHeader>
+          <DialogContent className="bg-pink-950 text-white sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+            <DialogHeader className="sticky top-0 bg-pink-950 pb-4 z-10">
               <DialogTitle>{currentMovie ? "Edit Movie" : "Add New Movie"}</DialogTitle>
               <DialogDescription className="text-pink-300">
                 {currentMovie
@@ -363,7 +391,7 @@ export default function AdminMovies() {
                   />
                 </div>
               </div>
-              <DialogFooter>
+              <DialogFooter className="sticky bottom-0 bg-pink-950 pt-4 mt-4 border-t border-pink-800">
                 <Button type="submit" className="bg-pink-600 hover:bg-pink-700">
                   {currentMovie ? "Update Movie" : "Add Movie"}
                 </Button>

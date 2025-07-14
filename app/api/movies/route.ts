@@ -25,17 +25,75 @@ export async function POST(request: NextRequest) {
     await connectToDatabase();
     const body = await request.json();
     
+    console.log('Received movie data:', JSON.stringify(body, null, 2));
+    
+    // Validate required fields
+    if (!body.title) {
+      return NextResponse.json({ 
+        error: 'Validation failed', 
+        details: ['Title is required'] 
+      }, { status: 400 });
+    }
+    
+    if (!body.year) {
+      return NextResponse.json({ 
+        error: 'Validation failed', 
+        details: ['Year is required'] 
+      }, { status: 400 });
+    }
+    
+    if (!body.director) {
+      return NextResponse.json({ 
+        error: 'Validation failed', 
+        details: ['Director is required'] 
+      }, { status: 400 });
+    }
+    
     // Generate unique ID if not provided
     if (!body.id) {
       body.id = `movie${Date.now()}`;
     }
     
-    const movie = new Movie(body);
-    await movie.save();
+    // Ensure arrays are arrays
+    if (typeof body.actors === 'string') {
+      body.actors = body.actors.split(',').map(s => s.trim()).filter(Boolean);
+    }
     
-    return NextResponse.json(movie, { status: 201 });
+    if (typeof body.genres === 'string') {
+      body.genres = body.genres.split(',').map(s => s.trim()).filter(Boolean);
+    }
+    
+    console.log('Processed movie data:', JSON.stringify(body, null, 2));
+    
+    const movie = new Movie(body);
+    const savedMovie = await movie.save();
+    
+    console.log('Movie saved successfully:', savedMovie);
+    
+    return NextResponse.json(savedMovie, { status: 201 });
   } catch (error) {
     console.error('Error creating movie:', error);
-    return NextResponse.json({ error: 'Failed to create movie' }, { status: 500 });
+    
+    // Provide more specific error information
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(err => err.message);
+      console.log('Validation errors:', validationErrors);
+      return NextResponse.json({ 
+        error: 'Validation failed', 
+        details: validationErrors 
+      }, { status: 400 });
+    }
+    
+    if (error.code === 11000) {
+      return NextResponse.json({ 
+        error: 'Duplicate movie ID', 
+        details: 'A movie with this ID already exists' 
+      }, { status: 409 });
+    }
+    
+    return NextResponse.json({ 
+      error: 'Failed to create movie', 
+      details: error.message 
+    }, { status: 500 });
   }
 }

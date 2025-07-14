@@ -22,7 +22,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
 import type { Book } from "@/lib/types"
-import { books as initialBooks } from "@/lib/data"
+import { bookService } from "@/lib/services"
 import AdminHeader from "@/components/admin-header"
 
 export default function AdminBooks() {
@@ -52,20 +52,33 @@ export default function AdminBooks() {
       return
     }
 
-    // In a real app, this would be an API call
-    // For demo, we'll use localStorage or fall back to initial data
-    const storedBooks = localStorage.getItem("books")
-    if (storedBooks) {
-      setBooks(JSON.parse(storedBooks))
-    } else {
-      setBooks(initialBooks)
+    async function fetchBooks() {
+      try {
+        const fetchedBooks = await bookService.getAll()
+        setBooks(fetchedBooks)
+      } catch (error) {
+        console.error('Error fetching books:', error)
+        toast({
+          title: "Error",
+          description: "Failed to load books",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
     }
-    setIsLoading(false)
-  }, [isAuthenticated, router])
 
-  const saveBooks = (updatedBooks: Book[]) => {
-    localStorage.setItem("books", JSON.stringify(updatedBooks))
-    setBooks(updatedBooks)
+    fetchBooks()
+  }, [isAuthenticated, router, toast])
+
+  // Function to refresh books data
+  const refreshBooks = async () => {
+    try {
+      const fetchedBooks = await bookService.getAll()
+      setBooks(fetchedBooks)
+    } catch (error) {
+      console.error('Error refreshing books:', error)
+    }
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -108,22 +121,32 @@ export default function AdminBooks() {
     setDeleteDialog(true)
   }
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!currentBook) return
 
-    const updatedBooks = books.filter((b) => b.id !== currentBook.id)
-    saveBooks(updatedBooks)
+    try {
+      await bookService.delete(currentBook.id)
 
-    toast({
-      title: "Book deleted",
-      description: `"${currentBook.title}" has been removed from your collection.`,
-    })
+      toast({
+        title: "Book deleted",
+        description: `"${currentBook.title}" has been removed from the database.`,
+      })
+      
+      // Refresh data from database
+      refreshBooks()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete book from database",
+        variant: "destructive",
+      })
+    }
 
     setDeleteDialog(false)
     setCurrentBook(null)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     const { title, author, readDate, rating, genres, thoughts, quote, cover } = formData
@@ -142,31 +165,36 @@ export default function AdminBooks() {
       cover: cover || undefined,
     }
 
-    if (currentBook) {
-      // Edit existing book
-      const updatedBooks = books.map((b) => (b.id === currentBook.id ? { ...b, ...bookData } : b))
-      saveBooks(updatedBooks)
+    try {
+      if (currentBook) {
+        // Edit existing book
+        await bookService.update(currentBook.id, bookData)
 
-      toast({
-        title: "Book updated",
-        description: `"${title}" has been updated successfully.`,
-      })
-    } else {
-      // Add new book
-      const newBook: Book = {
-        id: `book${Date.now()}`,
-        ...bookData,
+        toast({
+          title: "Book updated",
+          description: `"${title}" has been updated in the database.`,
+        })
+      } else {
+        // Add new book
+        await bookService.create(bookData)
+
+        toast({
+          title: "Book added",
+          description: `"${title}" has been added to the database.`,
+        })
       }
-
-      saveBooks([...books, newBook])
-
+    } catch (error) {
+      console.error('Book operation error:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
       toast({
-        title: "Book added",
-        description: `"${title}" has been added to your collection.`,
+        title: "Error",
+        description: currentBook ? `Failed to update book: ${errorMessage}` : `Failed to create book: ${errorMessage}`,
+        variant: "destructive",
       })
     }
 
     setOpenDialog(false)
+    refreshBooks()
   }
 
   if (!isAuthenticated || isLoading) {
@@ -246,8 +274,8 @@ export default function AdminBooks() {
 
         {/* Add/Edit Book Dialog */}
         <Dialog open={openDialog} onOpenChange={setOpenDialog}>
-          <DialogContent className="bg-blue-950 text-white sm:max-w-[600px]">
-            <DialogHeader>
+          <DialogContent className="bg-blue-950 text-white sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+            <DialogHeader className="sticky top-0 bg-blue-950 pb-4 z-10">
               <DialogTitle>{currentBook ? "Edit Book" : "Add New Book"}</DialogTitle>
               <DialogDescription className="text-blue-300">
                 {currentBook
@@ -370,7 +398,7 @@ export default function AdminBooks() {
                   />
                 </div>
               </div>
-              <DialogFooter>
+              <DialogFooter className="sticky bottom-0 bg-blue-950 pt-4 mt-4 border-t border-blue-800">
                 <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
                   {currentBook ? "Update Book" : "Add Book"}
                 </Button>

@@ -12,19 +12,20 @@ const PoemSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Movie Schema
-const MovieSchema = new mongoose.Schema({
+// Movie Schema (v2 - fixed validation)
+const MovieSchemaV2 = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
   title: { type: String, required: true },
-  genre: { type: String, required: true },
-  year: { type: Number, required: true },
-  director: { type: String },
-  actors: [{ type: String }],
-  rating: { type: Number, min: 1, max: 10 },
-  review: { type: String },
   poster: { type: String },
+  year: { type: Number, required: true },
+  director: { type: String, required: true },
+  actors: [{ type: String }],
+  genres: [{ type: String }],
+  rating: { type: Number, min: 1, max: 10 },
+  description: { type: String },
 }, {
-  timestamps: true
+  timestamps: true,
+  collection: 'movies' // Explicitly set collection name
 });
 
 // Book Schema
@@ -32,13 +33,12 @@ const BookSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
   title: { type: String, required: true },
   author: { type: String, required: true },
-  genre: { type: String, required: true },
-  year: { type: Number },
-  pages: { type: Number },
-  rating: { type: Number, min: 1, max: 10 },
-  review: { type: String },
   cover: { type: String },
-  status: { type: String, enum: ['Read', 'Reading', 'Want to Read'], default: 'Want to Read' },
+  readDate: { type: String, required: true },
+  rating: { type: Number, min: 1, max: 10 },
+  genres: [{ type: String }],
+  thoughts: { type: String },
+  quote: { type: String },
 }, {
   timestamps: true
 });
@@ -65,9 +65,16 @@ const AdminSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Create models
+// Create models with cache clearing for development
+if (mongoose.models.Movie) {
+  delete mongoose.models.Movie;
+}
+if (mongoose.models.Book) {
+  delete mongoose.models.Book;
+}
+
 export const Poem = mongoose.models.Poem || mongoose.model('Poem', PoemSchema);
-export const Movie = mongoose.models.Movie || mongoose.model('Movie', MovieSchema);
-export const Book = mongoose.models.Book || mongoose.model('Book', BookSchema);
+export const Movie = mongoose.model('Movie', MovieSchemaV2);
+export const Book = mongoose.model('Book', BookSchema);
 export const PersonalInfo = mongoose.models.PersonalInfo || mongoose.model('PersonalInfo', PersonalInfoSchema);
 export const Admin = mongoose.models.Admin || mongoose.model('Admin', AdminSchema);
