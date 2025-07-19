@@ -76,8 +76,7 @@
 
 ### 🔑 Default Admin Credentials
 
-- **Username:** `Soniwriter`
-- **Password:** `Sharaz-123`
+
 
 *Admin user is created automatically on first login attempt if not present in database.*
 
